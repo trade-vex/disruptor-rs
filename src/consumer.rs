@@ -73,7 +73,7 @@ pub(crate) fn start_processor<E, EP, W, B> (
 -> (Arc<Cursor>, Consumer)
 where
 	E:  'static + Send + Sync,
-	EP: 'static + Send + FnMut(&E, Sequence, bool),
+	EP: 'static + Send + FnMut(&mut E, Sequence, bool),
 	W:  'static + WaitStrategy,
 	B:  'static + Barrier + Send + Sync,
 {
@@ -94,7 +94,7 @@ where
 					let end_of_batch = available == sequence;
 					// SAFETY: Now, we have (shared) read access to the event at `sequence`.
 					let event_ptr    = ring_buffer.get(sequence);
-					let event        = unsafe { & *event_ptr };
+					let event        = unsafe { &mut *event_ptr };
 					event_handler(event, sequence, end_of_batch);
 					// Update next sequence to read.
 					sequence += 1;
@@ -118,7 +118,7 @@ pub(crate) fn start_processor_with_state<E, EP, W, B, S, IS> (
 where
 	E:  'static + Send + Sync,
 	IS: 'static + Send + FnOnce() -> S,
-	EP: 'static + Send + FnMut(&mut S, &E, Sequence, bool),
+	EP: 'static + Send + FnMut(&mut S, &mut E, Sequence, bool),
 	W:  'static + WaitStrategy,
 	B:  'static + Barrier + Send + Sync,
 {
@@ -140,7 +140,7 @@ where
 					let end_of_batch = available_sequence == sequence;
 					// SAFETY: Now, we have (shared) read access to the event at `sequence`.
 					let event_ptr    = ring_buffer.get(sequence);
-					let event        = unsafe { & *event_ptr };
+					let event        = unsafe { &mut *event_ptr };
 					event_handler(&mut state, event, sequence, end_of_batch);
 					// Update next sequence to read.
 					sequence += 1;

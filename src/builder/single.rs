@@ -68,7 +68,7 @@ where
 	/// Add an event handler.
 	pub fn handle_events_with<EH>(mut self, event_handler: EH) -> SPBuilder<SC, E, W, B>
 	where
-		EH: 'static + Send + FnMut(&E, Sequence, bool)
+		EH: 'static + Send + FnMut(&mut E, Sequence, bool)
 	{
 		self.add_event_handler(event_handler);
 		SPBuilder {
@@ -82,7 +82,7 @@ where
 	/// Add an event handler with state.
 	pub fn handle_events_and_state_with<EH, S, IS>(mut self, event_handler: EH, initialize_state: IS) -> SPBuilder<SC, E, W, B>
 	where
-		EH: 'static + Send + FnMut(&mut S, &E, Sequence, bool),
+		EH: 'static + Send + FnMut(&mut S, &mut E, Sequence, bool),
 		IS: 'static + Send + FnOnce() -> S,
 	{
 		self.add_event_handler_with_state(event_handler, initialize_state);
@@ -145,7 +145,7 @@ where
 	/// Add an event handler.
 	pub fn handle_events_with<EH>(mut self, event_handler: EH) -> SPBuilder<MC, E, W, B>
 	where
-		EH: 'static + Send + FnMut(&E, Sequence, bool)
+		EH: 'static + Send + FnMut(&mut E, Sequence, bool)
 	{
 		self.add_event_handler(event_handler);
 		SPBuilder {
@@ -159,7 +159,7 @@ where
 	/// Add an event handler with state.
 	pub fn handle_events_and_state_with<EH, S, IS>(mut self, event_handler: EH, initalize_state: IS) -> SPBuilder<MC, E, W, B>
 	where
-		EH: 'static + Send + FnMut(&mut S, &E, Sequence, bool),
+		EH: 'static + Send + FnMut(&mut S, &mut E, Sequence, bool),
 		IS: 'static + Send + FnOnce() -> S,
 	{
 		self.add_event_handler_with_state(event_handler, initalize_state);
@@ -194,7 +194,7 @@ where
 	/// Add an event handler.
 	pub fn handle_events_with<EH>(mut self, event_handler: EH) -> SPBuilder<MC, E, W, B>
 	where
-		EH: 'static + Send + FnMut(&E, Sequence, bool)
+		EH: 'static + Send + FnMut(&mut E, Sequence, bool)
 	{
 		self.add_event_handler(event_handler);
 		self
@@ -203,7 +203,7 @@ where
 	/// Add an event handler with state.
 	pub fn handle_events_and_state_with<EH, S, IS>(mut self, event_handler: EH, initialize_state: IS) -> SPBuilder<MC, E, W, B>
 	where
-		EH: 'static + Send + FnMut(&mut S, &E, Sequence, bool),
+		EH: 'static + Send + FnMut(&mut S, &mut E, Sequence, bool),
 		IS: 'static + Send + FnOnce() -> S,
 	{
 		self.add_event_handler_with_state(event_handler, initialize_state);

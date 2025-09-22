@@ -101,7 +101,7 @@ fn disruptor_spsc() {
     // Consumer
     let processor = {
         let sink = Arc::clone(&sink);
-        move |event: &Event, _sequence: i64, _end_of_batch: bool| {
+        move |event: &mut Event, _sequence: i64, _end_of_batch: bool| {
             sink.fetch_add(event.val, Ordering::Release);
         }
     };
@@ -133,7 +133,7 @@ fn disruptor_mpsc() {
     // Consumer
     let processor = {
         let sink = Arc::clone(&sink);
-        move |event: &Event, _sequence: i64, _end_of_batch: bool| {
+        move |event: &mut Event, _sequence: i64, _end_of_batch: bool| {
             sink.fetch_add(event.val, Ordering::Release);
         }
     };
