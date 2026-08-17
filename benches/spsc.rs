@@ -1,3 +1,4 @@
+use std::cell::UnsafeCell;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::thread;
@@ -104,7 +105,8 @@ fn disruptor(group: &mut BenchmarkGroup<WallTime>, inputs: (i64, u64), param: &s
 	let sink      = Arc::new(AtomicI64::new(0));
 	let processor = {
 		let sink = Arc::clone(&sink);
-		move |event: &mut Event, _sequence: i64, _end_of_batch: bool| {
+		move |event: &UnsafeCell<Event>, _sequence: i64, _end_of_batch: bool| {
+			let event = unsafe { &*event.get() };
 			sink.store(event.data, Ordering::Release);
 		}
 	};

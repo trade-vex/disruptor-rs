@@ -44,10 +44,14 @@ impl <E> RingBuffer<E> {
 	/// exist at any point in time.
 	#[inline]
 	pub(crate) fn get(&self, sequence: Sequence) -> *mut E {
+		self.get_cell(sequence).get()
+	}
+
+	#[inline]
+	pub(crate) fn get_cell(&self, sequence: Sequence) -> &UnsafeCell<E> {
 		let index = (sequence & self.index_mask) as usize;
 		// SAFETY: Index is within bounds - guaranteed by invariant and index mask.
-		let slot  = unsafe { self.slots.get_unchecked(index) };
-		slot.get()
+		unsafe { self.slots.get_unchecked(index) }
 	}
 
 	#[inline]

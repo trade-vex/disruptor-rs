@@ -15,7 +15,7 @@ use crate::{
 };
 use core_affinity::CoreId;
 use crossbeam_utils::CachePadded;
-use std::sync::{atomic::AtomicI64, Arc};
+use std::{cell::UnsafeCell, sync::{atomic::AtomicI64, Arc}};
 
 use self::{multi::MPBuilder, single::SPBuilder};
 
@@ -43,9 +43,9 @@ pub struct MC;
 ///     price: f64
 /// }
 /// let factory = || { Event { price: 0.0 }};
-///# let processor1 = |e: &mut Event, _, _| {};
-///# let processor2 = |e: &mut Event, _, _| {};
-///# let processor3 = |e: &mut Event, _, _| {};
+///# let processor1 = |e: &std::cell::UnsafeCell<Event>, _, _| {};
+///# let processor2 = |e: &std::cell::UnsafeCell<Event>, _, _| {};
+///# let processor3 = |e: &std::cell::UnsafeCell<Event>, _, _| {};
 /// let mut producer = build_single_producer(8, factory, BusySpin)
 ///    .handle_events_with(processor1)
 ///    .handle_events_with(processor2)
@@ -91,9 +91,9 @@ where
 ///     price: f64
 /// }
 /// let factory = || { Event { price: 0.0 }};
-///# let processor1 = |e: &mut Event, _, _| {};
-///# let processor2 = |e: &mut Event, _, _| {};
-///# let processor3 = |e: &mut Event, _, _| {};
+///# let processor1 = |e: &std::cell::UnsafeCell<Event>, _, _| {};
+///# let processor2 = |e: &std::cell::UnsafeCell<Event>, _, _| {};
+///# let processor3 = |e: &std::cell::UnsafeCell<Event>, _, _| {};
 /// let mut producer1 = build_multi_producer(64, factory, BusySpin)
 ///    .handle_events_with(processor1)
 ///    .handle_events_with(processor2)
@@ -142,9 +142,9 @@ where
 ///     price: f64
 /// }
 /// let factory = || { Event { price: 0.0 }};
-///# let processor1 = |e: &mut Event, _, _| {};
-///# let processor2 = |e: &mut Event, _, _| {};
-///# let processor3 = |e: &mut Event, _, _| {};
+///# let processor1 = |e: &std::cell::UnsafeCell<Event>, _, _| {};
+///# let processor2 = |e: &std::cell::UnsafeCell<Event>, _, _| {};
+///# let processor3 = |e: &std::cell::UnsafeCell<Event>, _, _| {};
 /// let mut producer = build_single_producer(8, factory, BusySpin)
 ///    // Processor 1 is pinned and has a custom name.
 ///    .pin_at_core(1).thread_name("my_processor").handle_events_with(processor1)
@@ -181,7 +181,7 @@ where
 {
     fn add_event_handler<EH>(&mut self, event_handler: EH)
     where
-        EH: 'static + Send + FnMut(&mut E, Sequence, bool),
+        EH: 'static + Send + FnMut(&UnsafeCell<E>, Sequence, bool),
     {
         let barrier = self.dependent_barrier();
         let (cursor, consumer) = start_processor(event_handler, self.shared(), barrier);
@@ -202,7 +202,7 @@ where
 
     fn add_event_handler_with_state<EH, S, IS>(&mut self, event_handler: EH, initialize_state: IS)
     where
-        EH: 'static + Send + FnMut(&mut S, &mut E, Sequence, bool),
+        EH: 'static + Send + FnMut(&mut S, &UnsafeCell<E>, Sequence, bool),
         IS: 'static + Send + FnOnce() -> S,
     {
         let barrier = self.dependent_barrier();

@@ -1,3 +1,4 @@
+use std::cell::UnsafeCell;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicI64, Ordering::{Acquire, Release, Relaxed}};
 use std::thread::{self, JoinHandle};
@@ -191,7 +192,8 @@ fn disruptor(group: &mut BenchmarkGroup<WallTime>, params: (i64, u64), param_des
 	let sink      = Arc::new(AtomicI64::new(0));
 	let processor = {
 		let sink = Arc::clone(&sink);
-		move |event: &mut Event, _sequence: i64, _end_of_batch: bool| {
+		move |event: &UnsafeCell<Event>, _sequence: i64, _end_of_batch: bool| {
+			let event = unsafe { &*event.get() };
 			// Black box event to avoid dead code elimination.
 			black_box(event.data);
 			sink.fetch_add(1, Release);

@@ -118,7 +118,7 @@ pub trait Producer<E> {
     /// }
     ///# fn main() -> Result<(), RingBufferFull> {
     /// let factory = || { Event { price: 0.0 }};
-    ///# let processor = |e: &mut Event, _, _| {};
+    ///# let processor = |e: &std::cell::UnsafeCell<Event>, _, _| {};
     ///# let mut producer = build_single_producer(8, factory, BusySpin)
     ///#     .handle_events_with(processor)
     ///#     .build();
@@ -149,7 +149,7 @@ pub trait Producer<E> {
     /// }
     ///# fn main() -> Result<(), MissingFreeSlots> {
     /// let factory = || { Event { price: 0.0 }};
-    ///# let processor = |e: &mut Event, _, _| {};
+    ///# let processor = |e: &std::cell::UnsafeCell<Event>, _, _| {};
     ///# let mut producer = build_single_producer(8, factory, BusySpin)
     ///#     .handle_events_with(processor)
     ///#     .build();
@@ -186,7 +186,7 @@ pub trait Producer<E> {
     ///     price: f64
     /// }
     /// let factory = || { Event { price: 0.0 }};
-    ///# let processor = |e: &mut Event, _, _| {};
+    ///# let processor = |e: &std::cell::UnsafeCell<Event>, _, _| {};
     ///# let mut producer = build_single_producer(8, factory, BusySpin)
     ///#     .handle_events_with(processor)
     ///#     .build();
@@ -214,7 +214,7 @@ pub trait Producer<E> {
     ///     price: f64
     /// }
     /// let factory = || { Event { price: 0.0 }};
-    ///# let processor = |e: &mut Event, _, _| {};
+    ///# let processor = |e: &std::cell::UnsafeCell<Event>, _, _| {};
     ///# let mut producer = build_single_producer(8, factory, BusySpin)
     ///#     .handle_events_with(processor)
     ///#     .build();

@@ -2,7 +2,7 @@
 //!
 //! To get started building a Multi Producer Disruptor, invoke [super::build_multi_producer].
 
-use std::{marker::PhantomData, sync::Arc};
+use std::{cell::UnsafeCell, marker::PhantomData, sync::Arc};
 
 use crate::{barrier::Barrier, builder::ProcessorSettings, consumer::{event_poller::EventPoller, MultiConsumerBarrier, SingleConsumerBarrier}, producer::multi::{MultiProducer, MultiProducerBarrier}, wait_strategies::WaitStrategy, Sequence};
 
@@ -66,9 +66,16 @@ where
 	}
 
 	/// Add an event handler.
+	///
+	/// # Safety contract
+	///
+	/// Each handler in a barrier group may access only the event fields it owns. Disjointness
+	/// across handlers in the same group is the caller's obligation. Handlers separated by
+	/// `and_then()` are ordered and need no such care. Obtain mutable access only with
+	/// `unsafe { &mut *event.get() }` while upholding this contract.
 	pub fn handle_events_with<EH>(mut self, event_handler: EH) -> MPBuilder<SC, E, W, B>
 	where
-		EH: 'static + Send + FnMut(&mut E, Sequence, bool)
+		EH: 'static + Send + FnMut(&UnsafeCell<E>, Sequence, bool)
 	{
 		self.add_event_handler(event_handler);
 		MPBuilder {
@@ -80,9 +87,16 @@ where
 	}
 
 	/// Add an event handler with state.
+	///
+	/// # Safety contract
+	///
+	/// Each handler in a barrier group may access only the event fields it owns. Disjointness
+	/// across handlers in the same group is the caller's obligation. Handlers separated by
+	/// `and_then()` are ordered and need no such care. Obtain mutable access only with
+	/// `unsafe { &mut *event.get() }` while upholding this contract.
 	pub fn handle_events_and_state_with<EH, S, IS>(mut self, event_handler: EH, initialize_state: IS) -> MPBuilder<SC, E, W, B>
 	where
-		EH: 'static + Send + FnMut(&mut S, &mut E, Sequence, bool),
+		EH: 'static + Send + FnMut(&mut S, &UnsafeCell<E>, Sequence, bool),
 		IS: 'static + Send + FnOnce() -> S
 	{
 		self.add_event_handler_with_state(event_handler, initialize_state);
@@ -115,9 +129,16 @@ where
 	}
 
 	/// Add an event handler.
+	///
+	/// # Safety contract
+	///
+	/// Each handler in a barrier group may access only the event fields it owns. Disjointness
+	/// across handlers in the same group is the caller's obligation. Handlers separated by
+	/// `and_then()` are ordered and need no such care. Obtain mutable access only with
+	/// `unsafe { &mut *event.get() }` while upholding this contract.
 	pub fn handle_events_with<EH>(mut self, event_handler: EH) -> MPBuilder<MC, E, W, B>
 	where
-		EH: 'static + Send + FnMut(&mut E, Sequence, bool)
+		EH: 'static + Send + FnMut(&UnsafeCell<E>, Sequence, bool)
 	{
 		self.add_event_handler(event_handler);
 		MPBuilder {
@@ -129,9 +150,16 @@ where
 	}
 
 	/// Add an event handler with state.
+	///
+	/// # Safety contract
+	///
+	/// Each handler in a barrier group may access only the event fields it owns. Disjointness
+	/// across handlers in the same group is the caller's obligation. Handlers separated by
+	/// `and_then()` are ordered and need no such care. Obtain mutable access only with
+	/// `unsafe { &mut *event.get() }` while upholding this contract.
 	pub fn handle_events_and_state_with<EH, S, IS>(mut self, event_handler: EH, initialize_state: IS) -> MPBuilder<MC, E, W, B>
 	where
-		EH: 'static + Send + FnMut(&mut S, &mut E, Sequence, bool),
+		EH: 'static + Send + FnMut(&mut S, &UnsafeCell<E>, Sequence, bool),
 		IS: 'static + Send + FnOnce() -> S
 	{
 		self.add_event_handler_with_state(event_handler, initialize_state);
@@ -192,18 +220,32 @@ where
 	}
 
 	/// Add an event handler.
+	///
+	/// # Safety contract
+	///
+	/// Each handler in a barrier group may access only the event fields it owns. Disjointness
+	/// across handlers in the same group is the caller's obligation. Handlers separated by
+	/// `and_then()` are ordered and need no such care. Obtain mutable access only with
+	/// `unsafe { &mut *event.get() }` while upholding this contract.
 	pub fn handle_events_with<EH>(mut self, event_handler: EH) -> MPBuilder<MC, E, W, B>
 	where
-		EH: 'static + Send + FnMut(&mut E, Sequence, bool)
+		EH: 'static + Send + FnMut(&UnsafeCell<E>, Sequence, bool)
 	{
 		self.add_event_handler(event_handler);
 		self
 	}
 
 	/// Add an event handler with state.
+	///
+	/// # Safety contract
+	///
+	/// Each handler in a barrier group may access only the event fields it owns. Disjointness
+	/// across handlers in the same group is the caller's obligation. Handlers separated by
+	/// `and_then()` are ordered and need no such care. Obtain mutable access only with
+	/// `unsafe { &mut *event.get() }` while upholding this contract.
 	pub fn handle_events_and_state_with<EH, S, IS>(mut self, event_handler: EH, initialize_state: IS) -> MPBuilder<MC, E, W, B>
 	where
-		EH: 'static + Send + FnMut(&mut S, &mut E, Sequence, bool),
+		EH: 'static + Send + FnMut(&mut S, &UnsafeCell<E>, Sequence, bool),
 		IS: 'static + Send + FnOnce() -> S
 	{
 		self.add_event_handler_with_state(event_handler, initialize_state);

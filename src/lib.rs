@@ -56,7 +56,8 @@
 //!
 //! // Define a closure for processing events. A thread, controlled by the disruptor, will run this
 //! // processor closure each time an event is published.
-//! let processor = |e: &mut Event, sequence: Sequence, end_of_batch: bool| {
+//! let processor = |event: &std::cell::UnsafeCell<Event>, sequence: Sequence, end_of_batch: bool| {
+//!     let e = unsafe { &*event.get() };
 //!     // Process the Event `e` published at `sequence`.
 //!     // If `end_of_batch` is false, you can batch up events until it's invoked with
 //!     // `end_of_batch` being true.
@@ -93,7 +94,8 @@
 //!
 //! let factory = || { Event { price: 0.0 }};
 //!
-//! let processor = |e: &mut Event, sequence: Sequence, end_of_batch: bool| {
+//! let processor = |event: &std::cell::UnsafeCell<Event>, sequence: Sequence, end_of_batch: bool| {
+//!     let e = unsafe { &*event.get() };
 //!     // Processing logic.
 //! };
 //!
@@ -129,13 +131,16 @@
 //!     let factory = || { Event { price: 0.0 }};
 //!
 //!     // Closure for processing events.
-//!     let h1 = |e: &mut Event, sequence: Sequence, end_of_batch: bool| {
+//!     let h1 = |event: &std::cell::UnsafeCell<Event>, sequence: Sequence, end_of_batch: bool| {
+//!         let e = unsafe { &*event.get() };
 //!         // Processing logic here.
 //!     };
-//!     let h2 = |e: &mut Event, sequence: Sequence, end_of_batch: bool| {
+//!     let h2 = |event: &std::cell::UnsafeCell<Event>, sequence: Sequence, end_of_batch: bool| {
+//!         let e = unsafe { &*event.get() };
 //!         // Some processing logic here.
 //!     };
-//!     let h3 = |e: &mut Event, sequence: Sequence, end_of_batch: bool| {
+//!     let h3 = |event: &std::cell::UnsafeCell<Event>, sequence: Sequence, end_of_batch: bool| {
+//!         let e = unsafe { &*event.get() };
 //!         // More processing logic here.
 //!     };
 //!
@@ -195,7 +200,8 @@
 //! let initial_state = || { State::default() };
 //!
 //! // Closure for processing events *with* state.
-//! let processor = |s: &mut State, e: &mut Event, _: Sequence, _: bool| {
+//! let processor = |s: &mut State, event: &std::cell::UnsafeCell<Event>, _: Sequence, _: bool| {
+//!     let e = unsafe { &mut *event.get() };
 //!     // Mutate your custom state:
 //!     *s.data.borrow_mut() += 1;
 //! };
@@ -285,7 +291,7 @@ pub use crate::wait_strategies::{BusySpin, BusySpinWithSpinLoopHint};
 mod tests {
     use super::*;
     use producer::MissingFreeSlots;
-    use std::cell::RefCell;
+    use std::cell::{RefCell, UnsafeCell};
     use std::collections::HashSet;
     use std::rc::Rc;
     use std::sync::atomic::AtomicBool;
@@ -314,7 +320,8 @@ mod tests {
         let barrier = Arc::new(AtomicBool::new(true));
         let processor = {
             let barrier = Arc::clone(&barrier);
-            move |e: &mut Event, _, _| {
+            move |event: &UnsafeCell<Event>, _, _| {
+				let e = unsafe { &*event.get() };
                 while barrier.load(Relaxed) { /* Wait. */ }
                 s.send(e.num).expect("Should be able to send.");
             }
@@ -351,7 +358,8 @@ mod tests {
         let barrier = Arc::new(AtomicBool::new(true));
         let processor = {
             let barrier = Arc::clone(&barrier);
-            move |e: &mut Event, _, _| {
+            move |event: &UnsafeCell<Event>, _, _| {
+				let e = unsafe { &*event.get() };
                 while barrier.load(Relaxed) { /* Wait. */ }
                 s.send(e.num).expect("Should be able to send.");
             }
@@ -395,7 +403,8 @@ mod tests {
         let barrier = Arc::new(AtomicBool::new(true));
         let processor = {
             let barrier = Arc::clone(&barrier);
-            move |e: &mut Event, _, _| {
+            move |event: &UnsafeCell<Event>, _, _| {
+				let e = unsafe { &*event.get() };
                 while barrier.load(Relaxed) { /* Wait. */ }
                 s.send(e.num).expect("Should be able to send.");
             }
@@ -436,7 +445,8 @@ mod tests {
         let barrier = Arc::new(AtomicBool::new(true));
         let processor = {
             let barrier = Arc::clone(&barrier);
-            move |e: &mut Event, _, _| {
+            move |event: &UnsafeCell<Event>, _, _| {
+				let e = unsafe { &*event.get() };
                 while barrier.load(Relaxed) { /* Wait. */ }
                 s.send(e.num).expect("Should be able to send.");
             }
@@ -500,7 +510,8 @@ mod tests {
     #[test]
     fn spsc_disruptor() {
         let (s, r) = mpsc::channel();
-        let processor = move |e: &mut Event, _, _| {
+        let processor = move |event: &UnsafeCell<Event>, _, _| {
+			let e = unsafe { &*event.get() };
             s.send(e.num).expect("Should be able to send.");
         };
         let mut producer = build_single_producer(8, factory(), BusySpin)
@@ -523,7 +534,8 @@ mod tests {
     #[test]
     fn spsc_disruptor_with_pinned_and_named_thread() {
         let (s, r) = mpsc::channel();
-        let processor = move |e: &mut Event, _, _| {
+        let processor = move |event: &UnsafeCell<Event>, _, _| {
+			let e = unsafe { &*event.get() };
             s.send(e.num).expect("Should be able to send.");
         };
         let mut producer = build_single_producer(8, factory(), BusySpin)
@@ -547,7 +559,8 @@ mod tests {
     #[test]
     fn spsc_disruptor_with_batch_publication() {
         let (s, r) = mpsc::channel();
-        let processor = move |e: &mut Event, _, _| {
+        let processor = move |event: &UnsafeCell<Event>, _, _| {
+			let e = unsafe { &*event.get() };
             s.send(e.num).expect("Should be able to send.");
         };
         let mut producer = build_single_producer(8, factory(), BusySpin)
@@ -576,7 +589,8 @@ mod tests {
     #[test]
     fn spsc_disruptor_with_zero_batch_publication() {
         let (s, r) = mpsc::channel();
-        let processor = move |e: &mut Event, _, _| {
+        let processor = move |event: &UnsafeCell<Event>, _, _| {
+			let e = unsafe { &*event.get() };
             s.send(e.num).expect("Should be able to send.");
         };
         let mut producer = build_single_producer(8, factory(), BusySpin)
@@ -598,7 +612,8 @@ mod tests {
     fn spsc_disruptor_with_state() {
         let (s, r) = mpsc::channel();
         let initialize_state = || Rc::new(RefCell::new(0));
-        let processor = move |state: &mut Rc<RefCell<i64>>, e: &mut Event, _, _| {
+        let processor = move |state: &mut Rc<RefCell<i64>>, event: &UnsafeCell<Event>, _, _| {
+			let e = unsafe { &*event.get() };
             let mut ref_cell = state.borrow_mut();
             *ref_cell += e.num;
             s.send(*ref_cell).expect("Should be able to send.");
@@ -619,7 +634,8 @@ mod tests {
     #[test]
     fn pipeline_of_two_spsc_disruptors() {
         let (s, r) = mpsc::channel();
-        let processor = move |e: &mut Event, _, _| {
+        let processor = move |event: &UnsafeCell<Event>, _, _| {
+			let e = unsafe { &*event.get() };
             s.send(e.num).expect("Should be able to send.");
         };
 
@@ -627,7 +643,8 @@ mod tests {
         let mut producer = build_single_producer(8, factory(), BusySpin)
             .handle_events_with(processor)
             .build();
-        let processor = move |e: &mut Event, _, _| {
+        let processor = move |event: &UnsafeCell<Event>, _, _| {
+			let e = unsafe { &*event.get() };
             producer.publish(|e2| e2.num = e.num);
         };
 
@@ -647,7 +664,8 @@ mod tests {
     #[test]
     fn multi_publisher_disruptor() {
         let (s, r) = mpsc::channel();
-        let processor = move |e: &mut Event, _, _| {
+        let processor = move |event: &UnsafeCell<Event>, _, _| {
+			let e = unsafe { &*event.get() };
             s.send(e.num).expect("Should be able to send.");
         };
 
@@ -682,7 +700,8 @@ mod tests {
     #[test]
     fn multi_publisher_disruptor_with_batch_publication() {
         let (s, r) = mpsc::channel();
-        let processor = move |e: &mut Event, _, _| {
+        let processor = move |event: &UnsafeCell<Event>, _, _| {
+			let e = unsafe { &*event.get() };
             s.send(e.num).expect("Should be able to send.");
         };
 
@@ -725,18 +744,21 @@ mod tests {
 
         let processor1 = {
             let s = s.clone();
-            move |e: &mut Event, _, _| {
+            move |event: &UnsafeCell<Event>, _, _| {
+				let e = unsafe { &*event.get() };
                 s.send(e.num + 1).unwrap();
             }
         };
         let processor2 = {
             let s = s.clone();
-            move |e: &mut Event, _, _| {
+            move |event: &UnsafeCell<Event>, _, _| {
+				let e = unsafe { &*event.get() };
                 s.send(e.num + 2).unwrap();
             }
         };
         let processor3 = {
-            move |e: &mut Event, _, _| {
+            move |event: &UnsafeCell<Event>, _, _| {
+				let e = unsafe { &*event.get() };
                 s.send(e.num + 3).unwrap();
             }
         };
@@ -764,38 +786,44 @@ mod tests {
 
         let processor1 = {
             let s = s.clone();
-            move |e: &mut Event, _, _| {
+            move |event: &UnsafeCell<Event>, _, _| {
+				let e = unsafe { &*event.get() };
                 s.send(e.num + 0).unwrap();
             }
         };
         let processor2 = {
             let s = s.clone();
-            move |state: &mut RefCell<i64>, e: &mut Event, _, _| {
+            move |state: &mut RefCell<i64>, event: &UnsafeCell<Event>, _, _| {
+				let e = unsafe { &*event.get() };
                 *state.borrow_mut() += e.num;
                 s.send(*state.borrow() + 10).unwrap();
             }
         };
         let processor3 = {
             let s = s.clone();
-            move |e: &mut Event, _, _| {
+            move |event: &UnsafeCell<Event>, _, _| {
+				let e = unsafe { &*event.get() };
                 s.send(e.num + 2).unwrap();
             }
         };
         let processor4 = {
             let s = s.clone();
-            move |state: &mut RefCell<i64>, e: &mut Event, _, _| {
+            move |state: &mut RefCell<i64>, event: &UnsafeCell<Event>, _, _| {
+				let e = unsafe { &*event.get() };
                 *state.borrow_mut() += e.num;
                 s.send(*state.borrow() + 20).unwrap();
             }
         };
         let processor5 = {
             let s = s.clone();
-            move |e: &mut Event, _, _| {
+            move |event: &UnsafeCell<Event>, _, _| {
+				let e = unsafe { &*event.get() };
                 s.send(e.num + 4).unwrap();
             }
         };
         let processor6 = {
-            move |state: &mut RefCell<i64>, e: &mut Event, _, _| {
+            move |state: &mut RefCell<i64>, event: &UnsafeCell<Event>, _, _| {
+				let e = unsafe { &*event.get() };
                 *state.borrow_mut() += e.num;
                 s.send(*state.borrow() + 30).unwrap();
             }
@@ -830,38 +858,44 @@ mod tests {
 
         let processor1 = {
             let s = s.clone();
-            move |e: &mut Event, _, _| {
+            move |event: &UnsafeCell<Event>, _, _| {
+				let e = unsafe { &*event.get() };
                 s.send(e.num + 0).unwrap();
             }
         };
         let processor2 = {
             let s = s.clone();
-            move |state: &mut RefCell<i64>, e: &mut Event, _, _| {
+            move |state: &mut RefCell<i64>, event: &UnsafeCell<Event>, _, _| {
+				let e = unsafe { &*event.get() };
                 *state.borrow_mut() += e.num;
                 s.send(*state.borrow() + 10).unwrap();
             }
         };
         let processor3 = {
             let s = s.clone();
-            move |e: &mut Event, _, _| {
+            move |event: &UnsafeCell<Event>, _, _| {
+				let e = unsafe { &*event.get() };
                 s.send(e.num + 2).unwrap();
             }
         };
         let processor4 = {
             let s = s.clone();
-            move |state: &mut RefCell<i64>, e: &mut Event, _, _| {
+            move |state: &mut RefCell<i64>, event: &UnsafeCell<Event>, _, _| {
+				let e = unsafe { &*event.get() };
                 *state.borrow_mut() += e.num;
                 s.send(*state.borrow() + 20).unwrap();
             }
         };
         let processor5 = {
             let s = s.clone();
-            move |e: &mut Event, _, _| {
+            move |event: &UnsafeCell<Event>, _, _| {
+				let e = unsafe { &*event.get() };
                 s.send(e.num + 4).unwrap();
             }
         };
         let processor6 = {
-            move |state: &mut RefCell<i64>, e: &mut Event, _, _| {
+            move |state: &mut RefCell<i64>, event: &UnsafeCell<Event>, _, _| {
+				let e = unsafe { &*event.get() };
                 *state.borrow_mut() += e.num;
                 s.send(*state.borrow() + 30).unwrap();
             }
@@ -1003,7 +1037,8 @@ mod tests {
     #[test]
     fn spmc_with_mixed_event_pollers_and_processors() {
         let (s, r) = mpsc::channel();
-        let processor1 = move |e: &mut Event, _, _| {
+        let processor1 = move |event: &UnsafeCell<Event>, _, _| {
+			let e = unsafe { &*event.get() };
             s.send(e.num).unwrap();
         };
 
@@ -1070,7 +1105,8 @@ mod tests {
                 let s_error = s_error.clone();
                 let s_seq = s_seq.clone();
                 let mut prev_seq = -1;
-                Some(move |e: &mut StressEvent, sequence, _| {
+                Some(move |event: &UnsafeCell<StressEvent>, sequence, _| {
+					let e = unsafe { &*event.get() };
                     if e.a != e.i - 5
                         || e.b != e.i + 7
                         || e.s != format!("Blackbriar {}", e.i).to_string()
@@ -1149,19 +1185,22 @@ mod tests {
 		let r3 = results.clone();
 
 		// h1 and h2 both mutate deterministically
-		let h1 = |e: &mut Event, _, _| {
+		let h1 = |event: &UnsafeCell<Event>, _, _| {
+			let e = unsafe { &mut *event.get() };
 			e.price += 10;
 		};
-		let h2 = |e: &mut Event, _, _| {
+		let h2 = |event: &UnsafeCell<Event>, _, _| {
+			let e = unsafe { &mut *event.get() };
 			e.price += 20;
 		};
-		let h3 = move |_e: &mut Event, _, _| {
+		let h3 = move |_event: &UnsafeCell<Event>, _, _| {
 			// h3 and h4 does not mutate the state and hence can be run in parallel
 		};
-		let h4 = move |_e: &mut Event, _, _| {
+		let h4 = move |_event: &UnsafeCell<Event>, _, _| {
 			// this does not mutate the state
 		};
-		let h5 = move |e: &mut Event, _, _| {
+		let h5 = move |event: &UnsafeCell<Event>, _, _| {
+			let e = unsafe { &*event.get() };
 			// h3 should see i + 30
 			r3.lock().unwrap().push(e.price);
 		};

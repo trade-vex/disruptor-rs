@@ -4,6 +4,7 @@
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use crossbeam::channel::*;
+use std::cell::UnsafeCell;
 use std::hint::black_box;
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::Arc;
@@ -101,7 +102,8 @@ fn disruptor_spsc() {
     // Consumer
     let processor = {
         let sink = Arc::clone(&sink);
-        move |event: &mut Event, _sequence: i64, _end_of_batch: bool| {
+        move |event: &UnsafeCell<Event>, _sequence: i64, _end_of_batch: bool| {
+            let event = unsafe { &*event.get() };
             sink.fetch_add(event.val, Ordering::Release);
         }
     };
@@ -133,7 +135,8 @@ fn disruptor_mpsc() {
     // Consumer
     let processor = {
         let sink = Arc::clone(&sink);
-        move |event: &mut Event, _sequence: i64, _end_of_batch: bool| {
+        move |event: &UnsafeCell<Event>, _sequence: i64, _end_of_batch: bool| {
+            let event = unsafe { &*event.get() };
             sink.fetch_add(event.val, Ordering::Release);
         }
     };
