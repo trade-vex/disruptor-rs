@@ -98,11 +98,12 @@ where
 					// separated by `and_then()` are ordered and need no such care.
 					let event = ring_buffer.get_cell(sequence);
 					event_handler(event, sequence, end_of_batch);
-					// Update next sequence to read.
 					sequence += 1;
+					// Publish per event, not per batch: a handler may wait inside its batch for a later
+					// stage to pass an earlier sequence of that same batch, which that stage can only do
+					// once this cursor has passed it.
+					consumer_cursor.store(sequence - 1);
 				}
-				// Signal to producers or later consumers that we're done processing `sequence - 1`.
-				consumer_cursor.store(sequence - 1);
 			}
 		}).expect("Should spawn thread.")
 	};
@@ -145,11 +146,12 @@ where
 					// separated by `and_then()` are ordered and need no such care.
 					let event = ring_buffer.get_cell(sequence);
 					event_handler(&mut state, event, sequence, end_of_batch);
-					// Update next sequence to read.
 					sequence += 1;
+					// Publish per event, not per batch: a handler may wait inside its batch for a later
+					// stage to pass an earlier sequence of that same batch, which that stage can only do
+					// once this cursor has passed it.
+					consumer_cursor.store(sequence - 1);
 				}
-				// Signal to producers or later consumers that we're done processing `sequence - 1`.
-				consumer_cursor.store(sequence - 1);
 			}
 		}).expect("Should spawn thread.")
 	};

@@ -294,10 +294,11 @@ mod tests {
     use std::cell::{RefCell, UnsafeCell};
     use std::collections::HashSet;
     use std::rc::Rc;
-    use std::sync::atomic::AtomicBool;
-    use std::sync::atomic::Ordering::Relaxed;
+    use std::sync::atomic::Ordering::{Acquire, Relaxed, Release};
+    use std::sync::atomic::{AtomicBool, AtomicI64};
     use std::sync::{mpsc, Arc};
     use std::thread;
+    use std::time::{Duration, Instant};
 
     #[derive(Debug)]
     struct Event {
@@ -1234,4 +1235,40 @@ mod tests {
 			assert_eq!(*val, i as u64 + 30, "event {} had wrong price", i);
 		}
 	}
+
+    #[test]
+    fn a_handler_may_wait_for_a_later_stage_within_its_own_batch() {
+        // h1 at sequence 1 waits until h2, gated behind h1, has handled sequence 0 of the same batch.
+        // With a per-batch cursor h2 never sees sequence 0, so h1 gives up at the deadline instead of hanging.
+        let settled = Arc::new(AtomicI64::new(-1));
+        let waited = Arc::new(AtomicBool::new(false));
+        let h1 = {
+            let settled = Arc::clone(&settled);
+            let waited = Arc::clone(&waited);
+            move |_e: &UnsafeCell<Event>, sequence: Sequence, _| {
+                if sequence == 1 {
+                    let deadline = Instant::now() + Duration::from_secs(5);
+                    while settled.load(Acquire) < 0 && Instant::now() < deadline {
+                        std::hint::spin_loop();
+                    }
+                    waited.store(settled.load(Acquire) >= 0, Relaxed);
+                }
+            }
+        };
+        let h2 = move |_e: &UnsafeCell<Event>, sequence: Sequence, _| settled.store(sequence, Release);
+        let mut producer = build_single_producer(8, factory(), BusySpin)
+            .handle_events_with(h1)
+            .and_then()
+            .handle_events_with(h2)
+            .build();
+
+        producer.batch_publish(4, |iter| {
+            for e in iter {
+                e.num = 0;
+            }
+        });
+        drop(producer);
+
+        assert!(waited.load(Relaxed), "h2 must pass sequence 0 while h1 is still inside its batch");
+    }
 }
